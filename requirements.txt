@@ -1,1 +1,2 @@
-pinject==0.1.9
+scapy
+requests
